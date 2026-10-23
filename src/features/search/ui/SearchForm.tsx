@@ -117,7 +117,7 @@ export function SearchForm() {
     return (current?.models ?? []).map((m) => ({ value: m, label: m }));
   }, [make]);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setDemoMessage("");
 
@@ -145,30 +145,84 @@ export function SearchForm() {
       return;
     }
 
-    const search = part.trim();
+    const payload = useManualVehicle
+      ? {
+          make: MAKES.find((item) => item.value === make)?.label ?? make,
+          model,
+          year,
+          engine: engine.trim() || undefined,
+          search: part.trim(),
+        }
+      : {
+          vin: normalizedVin,
+          search: part.trim(),
+        };
 
-    if (useManualVehicle) {
-      const payload = {
-        make,
-        model,
-        year,
-        engine: engine.trim() || undefined,
-        search,
-      };
-      console.log("Поиск по ручным данным:", payload);
-      // TODO: здесь будет запрос в DeepSeek с этим объектом
-    } else {
-      const payload = {
-        vin: normalizedVin,
-        search,
-      };
-      console.log("Поиск по VIN:", payload);
-      // TODO: здесь будет запрос в DeepSeek с этим объектом
+    setIsLoading(true);
+    setSearched(true);
+    setItems([]);
+
+    try {
+      const response = await fetch("/api/parts/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data: unknown = await response.json();
+
+      if (!response.ok) {
+        const message =
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data &&
+          typeof data.error === "string"
+            ? data.error
+            : "Не удалось выполнить поиск. Попробуйте ещё раз.";
+        throw new Error(message);
+      }
+
+      if (
+        typeof data !== "object" ||
+        data === null ||
+        !("items" in data) ||
+        !Array.isArray(data.items)
+      ) {
+        throw new Error("Сервер вернул некорректный ответ.");
+      }
+
+      const nextItems = data.items.filter(
+        (item): item is PartItem =>
+          typeof item === "object" &&
+          item !== null &&
+          "id" in item &&
+          "name" in item &&
+          "article" in item &&
+          "url" in item &&
+          typeof item.id === "string" &&
+          typeof item.name === "string" &&
+          typeof item.article === "string" &&
+          typeof item.url === "string",
+      );
+
+      setItems(nextItems);
+      setDemoMessage(
+        "message" in data && typeof data.message === "string"
+          ? data.message
+          : nextItems.length
+            ? "Поиск завершён."
+            : "Подходящие предложения не подтверждены. Попробуйте уточнить запрос.",
+      );
+    } catch (error) {
+      setItems([]);
+      setDemoMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось выполнить поиск. Попробуйте ещё раз.",
+      );
+    } finally {
+      setIsLoading(false);
     }
-
-    setDemoMessage(
-      "Запрос сформирован. Отправка в DeepSeek будет подключена следующим этапом.",
-    );
   };
 
   return (
@@ -336,7 +390,7 @@ export function SearchForm() {
 
       <TrustRow />
 
-      <PartsResults items={mockParts} isLoading={isLoading} searched={searched} />
+      <PartsResults items={searched ? items : undefined} isLoading={isLoading} searched={searched} />
     </>
   );
 }
