@@ -43,7 +43,7 @@ export function VinInput({ value, onChange }: VinInputProps) {
 
       <div
         className={[
-          "flex items-center gap-3 rounded-[7px] border bg-white p-[6px] transition-all",
+          "flex items-center gap-3 rounded-[7px] border bg-white p-[12px] transition-all",
           showError
             ? "border-red-500 focus-within:border-red-500 focus-within:shadow-[0_0_0_3px_rgba(239,68,68,0.12)]"
             : "border-gray-400 focus-within:border-blue-500 focus-within:shadow-[0_0_0_3px_rgba(23,105,232,0.1)]",

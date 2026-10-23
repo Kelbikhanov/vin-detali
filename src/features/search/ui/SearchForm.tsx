@@ -8,6 +8,52 @@ import { generateYears } from "../lib/generateYears";
 import { VinInput } from "@/shared/ui/VinInput/VinInput";
 import { PartInput } from "@/shared/ui/PartInput/PartInput";
 import { validateVin } from "@/shared/lib/validateVin";
+import PartsResults from "./PartsResults";
+
+type PartItem = {
+  id: string;
+  name: string;
+  article: string;
+  brand?: string;
+  image?: string | null;
+  url: string;
+  price?: number | null;
+  currency?: string;
+  seller?: string;
+};
+
+export const mockParts: PartItem[] = [
+  {
+    id: "1",
+    name: "Фильтр масляный двигателя",
+    article: "06L115562B",
+    brand: "VAG",
+    image: null,
+    url: "https://www.ozon.ru/",
+    price: 1850,
+    seller: "Ozon",
+  },
+  {
+    id: "2",
+    name: "Фильтр масляный",
+    article: "HU 7020 z",
+    brand: "MANN-FILTER",
+    image: null,
+    url: "https://www.exist.ru/",
+    price: 1290,
+    seller: "Exist.ru",
+  },
+  {
+    id: "3",
+    name: "Фильтр масляный двигателя",
+    article: "WL7506",
+    brand: "WIX",
+    image: null,
+    url: "https://www.wildberries.ru/",
+    price: null,
+    seller: "Wildberries",
+  },
+];
 
 type MakeData = { value: string; label: string; models: string[] };
 
@@ -53,6 +99,9 @@ export function SearchForm() {
   const [model, setModel] = useState("");
   const [year, setYear] = useState("");
   const [part, setPart] = useState("");
+  const [items, setItems] = useState<PartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
   const vinValidation = validateVin(vin);
   const vinReady = vin.trim().length === 17 && vinValidation.ok;
   const manualVehicleReady = Boolean(manualMode && make && model && year);
@@ -78,11 +127,15 @@ export function SearchForm() {
 
     if (!useVin && !useManualVehicle) {
       if (normalizedVin) {
-        setDemoMessage(vinValidation.ok
-          ? "Введите полный VIN из 17 символов или заполните данные автомобиля вручную."
-          : vinValidation.message);
+        setDemoMessage(
+          vinValidation.ok
+            ? "Введите полный VIN из 17 символов или заполните данные автомобиля вручную."
+            : vinValidation.message,
+        );
       } else {
-        setDemoMessage("Введите VIN или укажите марку, модель и год автомобиля вручную.");
+        setDemoMessage(
+          "Введите VIN или укажите марку, модель и год автомобиля вручную.",
+        );
       }
       return;
     }
@@ -92,13 +145,29 @@ export function SearchForm() {
       return;
     }
 
-    const vehicleDescription = useManualVehicle
-      ? `${MAKES.find((m) => m.value === make)?.label ?? make} ${model} (${year})${engine ? `, двигатель ${engine}` : ""}`
-      : `автомобиль с VIN ${normalizedVin}`;
+    const search = part.trim();
 
-    // На этом этапе проверяем только форму. Запрос к DeepSeek подключим позже.
+    if (useManualVehicle) {
+      const payload = {
+        make,
+        model,
+        year,
+        engine: engine.trim() || undefined,
+        search,
+      };
+      console.log("Поиск по ручным данным:", payload);
+      // TODO: здесь будет запрос в DeepSeek с этим объектом
+    } else {
+      const payload = {
+        vin: normalizedVin,
+        search,
+      };
+      console.log("Поиск по VIN:", payload);
+      // TODO: здесь будет запрос в DeepSeek с этим объектом
+    }
+
     setDemoMessage(
-      `Форма заполнена корректно: «${part.trim()}» для ${vehicleDescription}. Отправка запроса в DeepSeek будет подключена следующим этапом.`,
+      "Запрос сформирован. Отправка в DeepSeek будет подключена следующим этапом.",
     );
   };
 
@@ -146,12 +215,17 @@ export function SearchForm() {
               }}
               className="font-semibold text-blue-700 underline underline-offset-2 transition-colors hover:text-blue-800"
             >
-              {manualMode ? "скрыть ручной ввод данных" : "ввести данные вручную"}
+              {manualMode
+                ? "скрыть ручной ввод данных"
+                : "ввести данные вручную"}
             </button>
           </p>
 
           {manualMode && (
-            <div id="manual-vehicle-fields" className="grid grid-cols-2 gap-3.5 rounded-xl border border-gray-200 bg-gray-50 p-4 md:grid-cols-4">
+            <div
+              id="manual-vehicle-fields"
+              className="grid grid-cols-2 gap-3.5 rounded-xl border border-gray-200 bg-gray-50 p-4 md:grid-cols-4"
+            >
               <Select
                 label="Марка"
                 name="make"
@@ -261,6 +335,8 @@ export function SearchForm() {
       )}
 
       <TrustRow />
+
+      <PartsResults items={mockParts} isLoading={isLoading} searched={searched} />
     </>
   );
 }

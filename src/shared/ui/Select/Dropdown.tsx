@@ -7,9 +7,18 @@ type DropdownProps = {
   value: string;
   onSelect: (option: Option) => void;
   id: string;
+  highlightedIndex?: number;
+  onHover?: (index: number) => void;
 };
 
-export function Dropdown({ options, value, onSelect, id }: DropdownProps) {
+export function Dropdown({
+  options,
+  value,
+  onSelect,
+  id,
+  highlightedIndex = -1,
+  onHover,
+}: DropdownProps) {
   if (options.length === 0) {
     return (
       <ul
@@ -17,7 +26,7 @@ export function Dropdown({ options, value, onSelect, id }: DropdownProps) {
         role="listbox"
         className="absolute z-30 mt-1.5 w-full rounded-[7px] border border-gray-200 bg-white px-3.5 py-3 text-sm font-semibold text-gray-500 shadow-lg"
       >
-        <li>Нет вариантов</li>
+        <li>Нет вариантов — можно оставить введённый текст</li>
       </ul>
     );
   }
@@ -28,20 +37,26 @@ export function Dropdown({ options, value, onSelect, id }: DropdownProps) {
       role="listbox"
       className="absolute z-30 mt-1.5 max-h-64 w-full overflow-auto rounded-[7px] border border-gray-200 bg-white py-1 shadow-lg"
     >
-      {options.map((option) => {
+      {options.map((option, index) => {
         const isSelected = option.value === value;
+        const isHighlighted = index === highlightedIndex;
         return (
           <li key={option.value}>
             <button
               type="button"
               role="option"
               aria-selected={isSelected}
+              // preventDefault, чтобы input не терял фокус до клика
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => onHover?.(index)}
               onClick={() => onSelect(option)}
               className={[
                 "flex w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm font-semibold transition-colors",
                 isSelected
                   ? "bg-blue-50 text-blue-700"
-                  : "text-gray-900 hover:bg-gray-50",
+                  : isHighlighted
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-900 hover:bg-gray-50",
               ].join(" ")}
             >
               <span className="truncate">{option.label}</span>
